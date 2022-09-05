@@ -255,12 +255,14 @@
    | suc x, 0 => suc x
    | suc x, suc y => x - y
 
+{-
 \func \infixl 6 -' (x y : Nat) : Nat
    => x + (\case x, y \with {
       | 0, _ => 0
       | suc x, 0 => suc x
       | suc x, suc y => x -' y
    })
+-}
 
 \func \infix 4 < (x y : Nat) : Bool
    | 0, 0 => false
