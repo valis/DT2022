@@ -1,0 +1,105 @@
+\open Nat
+
+-- Равенства
+
+\func pmap {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a' => path (\lam i => f (p @ i))
+
+\func transport {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' \elim p
+    | idp => b
+
+\func \infixr 5 *> {A : \Type} {a a' a'' : A} (p : a = a') (q : a' = a'') : a = a''
+  => transport (\lam x => a = x) q p
+
+\func sym {A : \Type} {a a' : A} (p : a = a') : a' = a
+  => transport (\lam x => x = a) p idp
+
+\func \fix 2 qed {A : \Type} (a : A) : a = a => idp
+
+\func \infixr 1 >== {A : \Type} {a a' a'' : A} (p : a = a') (q : a' = a'') => p *> q
+
+\func \infix 2 ==< {A : \Type} (a : A) {a' : A} (p : a = a') => p
+
+\func J
+  {A : \Type} {a : A}
+  (B : \Pi (a' : A) -> a = a' -> \Type)
+  (b : B a idp)
+  {a' : A} (p : a = a')
+  : B a' p
+  => coe (\lam i => B (p @ i) (psqueeze p i)) b right
+  \where \func psqueeze  {A : \Type} {a a' : A} (p : a = a') (i : I) : a = p @ i => path (\lam j => p @ I.squeeze i j)
+
+-- Logic
+
+\func \infix 1 <-> (A B : \Type) => \Sigma (A -> B) (B -> A)
+
+\func Not (A : \Type) => A -> Empty
+
+\func suc/=0 {n : Nat} (p : suc n = 0) : Empty => transport (\lam n => \case n \with { | 0 => Empty | suc _ => \Sigma }) p ()
+
+-- Either
+
+\data Either (A B : \Type) | inl A | inr B
+
+\truncated \data \fixr 2 Or (A B : \Type) : \Prop
+  | byLeft A
+  | byRight B
+
+-- Bool
+
+\data Bool | true | false
+
+\func not (x : Bool) : Bool
+  | true => false
+  | false => true
+
+\func \infixr 3 && (x y : Bool) : Bool \elim x
+  | true => y
+  | false => false
+
+\func \infixr 2 || (x y : Bool) : Bool \elim x
+  | true => true
+  | false => y
+
+\func T (b : Bool) : \Type
+  | true => \Sigma
+  | false => Empty
+
+\func if {A : \Type} (b : Bool) (t e : A) : A \elim b
+  | true => t
+  | false => e
+
+-- List
+
+\data List (A : \Type) | nil | \infixr 5 :: A (List A)
+
+\func \infixr 5 ++ {A : \Type} (xs ys : List A) : List A \elim xs
+  | nil => ys
+  | :: x xs => x :: xs ++ ys
+
+\func length {A : \Type} (xs : List A) : Nat
+  | nil => 0
+  | :: _ xs => suc (length xs)
+
+-- Vec
+
+\data Vec (A : \Type) (n : Nat) \elim n
+  | zero => vnil
+  | suc n => vcons A (Vec A n)
+
+\func \infixl 4 v++ {A : \Type} {n m : Nat} (xs : Vec A n) (ys : Vec A m) : Vec A (n + m) \elim n, xs
+  | 0, vnil => ys
+  | suc n, vcons x xs => vcons x (xs v++ ys)
+
+-- Empty
+
+\data Empty
+
+\func absurd {A : \Type} (e : Empty) : A
+
+-- Maybe
+
+\data Maybe (A : \Type) | nothing | just A
+
+\func maybe {A B : \Type} (b : B) (f : A -> B) (m : Maybe A) : B \elim m
+  | nothing => b
+  | just a => f a
