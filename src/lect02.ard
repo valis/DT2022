@@ -134,6 +134,9 @@
 -- Например, элементы следующего \Sigma-типа -- это пары из натурального числа n и элемента типа n = n (т.е. доказательства, что n равно n).
 -- \Sigma (n : Nat) (n = n) === \data Pair' | pair' (n : Nat) (n = n)
 
+\func pairEx1 (p : \Sigma (A : \Set) A) (q : p = (Nat,0)) => 1
+\func pairEx2 (p : \Sigma (A : \Set) A) (q : (Nat,0) = {\Sigma (A : \Set) A} p) => 1
+
 \func dependentExample => \Sigma (A : \Type) A
 \func dependentExample1 : dependentExample => (Nat,0)
 \func dependentExample2 : dependentExample => (Int,-1)
@@ -153,19 +156,6 @@
    unit'' :: ()
    unit'' = ()
 -}
-
-\func etaFunc {A B : \Type} (f : A -> B) : (\lam x => f x) = f
-  => idp
-
-\func etaFuncDep {A : \Type} {B : A -> \Type} (f : \Pi (a : A) -> B a) : (\lam x => f x) = f
-  => idp
-
-\func pairEta {A B : \Type} (p : \Sigma A B) : (p.1,p.2) = p
-  => idp
-
-\func etaUnit (p : \Sigma) : () = p => idp
-
-\func etaUnit' (p q : \Sigma) : p = q => idp
 
 -- 4a. Пример утверждений и доказательств.
 
@@ -270,9 +260,11 @@
   | false => \case __
 
 -- Доказательства других двух утверждений, доказанных ранее, выглядят аналогично.
-\func lemma_ (x : Bool) : \Sigma (y : Bool) (x = y) => (x, idp)
+\func lemma_ (x : Bool) : \Sigma (y : Bool) (x = y)
+  => (x, idp)
 
-\func higherOrderFunc_ (f : \Pi (x : Bool) -> x = x) : true = true => f true
+\func higherOrderFunc_ (f : \Pi (x : Bool) -> x = x) : true = true
+  => f true
 
 -- 6. Еще примеры утверждений и доказательств: инволютивность reverse.
 
