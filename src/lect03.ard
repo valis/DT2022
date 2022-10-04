@@ -165,9 +165,9 @@ ggg = g
 \func pmap'' {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a'
   => rewrite p idp
 
-\func foobar {p : \Sigma Nat Nat} => p.1
+\func foobar_ {p : \Sigma Nat Nat} => p.1
 
-\func test => foobar {1,2}
+\func test => foobar_ {1,2}
 
 -- 5. Еще примеры утверждений и доказательств: ассоциативность сложения натуральных чисел, инволютивность reverse.
 

@@ -1,5 +1,3 @@
-\import Logic.Meta
-\import Paths.Meta
 \import Utils
 \open Nat
 
@@ -65,7 +63,7 @@
   | suc n, cons x xs => cons x (xs v++ ys)
 
 -- Очень полезная функция.
-\func Fin-length {A : \Type} {n : Nat} (xs : Vec A n) => n
+\func Vec-length {A : \Type} {n : Nat} (xs : Vec A n) => n
 
 -- 3. Fin, toNat, lookup.
 
@@ -265,12 +263,16 @@
 \func sym {A : \Type} {a a' : A} (p : a = a') : a' = a \elim p
   | idp => idp
 
-\func trans {A : \Type} {a a' a'' : A} (p : a = a') (q : a' = a'')
-  : a = a'' \elim q
+\func trans {A : \Type} {a a' a'' : A} (p : a = a') (q : a' = a'') : a = a'' \elim q
   | idp => p
 
-\func foo {n : Nat} (p : 0 = n) : 1 = 1 \elim p
+\func foo {n : Nat} (p : 0 = n) : n = 0 \elim p
   | idp => idp
+
+{-
+\func bar {n : Nat} (p : n = n) : p = idp \elim p
+  | idp => idp
+-}
 
 -- 8. Ассоциативность ++ для векторов.
 
