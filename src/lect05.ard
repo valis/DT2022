@@ -1,0 +1,155 @@
+\import Arith.Nat (<_suc_<=, NatSemiring, id<suc)
+\import Order.LinearOrder
+\import Utils
+\import hw03
+\open Nat
+
+-- 1. Ассоциативность ++ для векторов.
+
+\func +-assoc (n m k : Nat) : (n + m) + k = n + (m + k) \elim n
+  | 0 => idp
+  | suc n => pmap suc (+-assoc n m k)
+
+-- Ассоциативность для v++ даже сформулировать сложно, так как у (xs v++ ys) v++ zs и xs v++ (ys v++ zs) разные типы: Vec A (k + (m + n)) и Vec A ((k + m) + n).
+-- Это можно поправить при помощи transport, так как он позволяет любой элемент Vec A x превратить в элемент Vec A y, если x и y равны.
+\func v++-assoc {A : \Type} {n m k : Nat}
+                (xs : Vec A n) (ys : Vec A m) (zs : Vec A k)
+  : transport (Vec A) (+-assoc n m k) ((xs v++ ys) v++ zs) = xs v++ (ys v++ zs)
+  \elim n, xs
+    | 0, vnil => idp
+    | suc n, vcons a xs => transport_vcons (+-assoc n m k) a (xs v++ ys v++ zs) *> pmap (vcons a) (v++-assoc xs ys zs)
+  \where {
+    \func transport_vcons {A : \Type} {n m : Nat} (p : n = m) (a : A) (l : Vec A n)
+      : transport (Vec A) (pmap suc p) (vcons a l) = vcons a (transport (Vec A) p l)
+      \elim p
+        | idp => idp
+  }
+
+-- 2. Full induction
+
+\open NatSemiring(<)
+
+\func Nat-ind (P : Nat -> \Type)
+              (s : \Pi (n : Nat) -> (\Pi (k : Nat) -> k < n -> P k) -> P n)
+              (x : Nat) : P x
+  => aux P s (suc x) x id<suc
+  \where {
+    \func aux
+      (P : Nat -> \Type)
+      (s : \Pi (n : Nat) -> (\Pi (k : Nat) -> k < n -> P k) -> P n)
+      (x : Nat) (y : Nat) (q : y < x) : P y \elim x
+      | 0 => \case q
+      | suc x => s y (\lam k k<y => aux P s x k (<-transitive-left k<y (<_suc_<= q)))
+  }
+
+-- 3. Определение =.
+
+-- В прелюдии определен тип I с двумя конструкторами left и right, но в отличии от обычных \data эти два конструктора равны.
+-- Это означает, что для I нельзя использовать паттерн матчинг, так как иначе было бы легко вывести противоречие.
+-- Так как left и right равны, то некоторые a : A и a' : A равны тогда и только тогда, когда существует функция f : I -> A, такая что f left == a и f right == a', где == -- это вычислительное равенство.
+-- Тип a = {A} a' определен как тип функций I -> A, удовлетворяющих этому свойству.
+
+\func test {A : \Type} (f : I -> A) : f left = f right
+  => path f
+
+-- Чтобы доказать, что a = a, можно взять константную функцию \lam _ => a : I -> A.
+\func idp' {A : \Type} {a : A} : a = a => path (\lam _ => a)
+
+-- Если f : A -> B и g : I -> A, то их композиция дает нам pmap.
+-- Действительно g доказывает, что g left = g right, а композиция f и g доказывает, что f (g left) = f (g right).
+\func pmap'' {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a'
+  => \lam i => f (p i)
+
+\func pmap' {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a'
+  => path (\lam i => f (p @ i))
+
+-- Функция @, определенная в прелюдии, -- это просто обратная функция к конструктору path.
+-- path (f : I -> A) : f left = f right
+-- @ (p : a = a') (i : I) : A
+-- @ (path f) == f -- бета-эквивалентность
+-- path (@ p) == p -- эта-эквивалентность.
+
+-- pmap можно определять по разному, но если использовать определение, данное выше, то он будет обладать хорошими вычислительными свойствами.
+-- Например, pmap id = id и pmap (f . g) = pmap f . pmap g, где (.) -- это композиция.
+-- Если определить pmap по другому, то эти равенства тоже будут верны, но не вычислительно, то есть их нельзя будет доказать просто по рефлексивности.
+\func pmap-idp {A : \Type} {a a' : A} (p : a = a') : pmap (\lam x => x) p = p
+  => idp
+
+-- 4. Функциональная экстенсиональность.
+
+-- Функциональная экстенсиональность говорит, что если две функции f и g равны на всех аргументах, то они равны.
+-- Ее легко доказать, используя наше определение равенства.
+\func funExt {A : \Type} (B : A -> \Type) {f g : \Pi (a : A) -> B a}
+             (p : \Pi (a : A) -> f a = g a) : f = g
+  => \lam i a => p a i
+
+\func funExt' {A B : \Type} {f g : A -> B}
+              (p : \Pi (a : A) -> f a = g a) : f = {A -> B} g
+  => \lam i a => p a i
+
+-- В большинстве других языков с зависимыми типами ее доказать нельзя.
+-- Ее можно добавить просто как аксиому, то есть функцию без реализации, но аксиомы обычно не любят добавлять, так как это портит вычислительные свойства языка.
+
+-- Например, если мы добавим аксиому исключенного третьего lem, то легко написать константу foo : Nat, которая не будет вычисляться ни в какое конкретное число.
+-- \func lem : \Pi (X : \Type) -> Either X (X -> Empty)
+-- \func foo : Nat => \case lem Nat \with { | Left => 0 | Right => 1 }
+
+-- 5. Элиминатор для I.
+
+-- О функции coe, определенной в прелюдии, можно думать как об элиминаторе для I.
+-- Она говорит, что для определения функции над I достаточно определить ее для left.
+-- Для сравнения элиминатор для Bool говорит, что для определения функции над Bool достаточно определить ее для true и false.
+
+{-
+\func coe (P : I -> \Type)
+          (a : P left)
+          (i : I) : P i \elim i
+  | left => a
+-}
+
+-- Используя coe, легко доказать, что любой i : I равен left.
+\func left=i (i : I) : left = i
+  --  | left => idp
+  => coe (\lam i => left = i) idp i
+
+-- Мы не можем доказать, что left не равно right, так как мы не можем определить такую функцию для I ни рекурсивно, ни через \data.
+{-
+\func TI (b : I)
+  | left => Unit
+  | right => Empty
+-}
+
+-- 6. coe и transport.
+
+-- Функция coe тесно связана с transport.
+-- Мы можем определить transport через coe.
+
+\func transport'' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a'
+  => coe (\lam i => B (p i)) b right
+-- Пусть B' == \lam i => B (p i).
+-- Тогда
+-- B' : I -> \Type
+-- B' left == B a
+-- B' right == B a'
+--
+-- \lam x => coe B' x right : B' left -> B' right
+
+-- В ДЗ нужно будет показать, что через transport определеяется частный случай coe.
+
+\func J'' {A : \Type} {a : A} (B : \Pi (a' : A) -> a = a' -> \Type) (b : B a idp)
+  {a' : A} (p : a = a') : B a' p
+  => coe (\lam i => B (p i) (\lam j => p (I.squeeze i j))) b right
+
+-- 7. true /= false
+
+-- f : A -> B, f a = b, f a' = b'
+
+\func Unit/=Empty (p : (\Sigma) = Empty) : Empty
+  => repl p ()
+
+\func TB (b : Bool) : \Type
+  | true => \Sigma
+  | false => Empty
+
+\func true/=false (p : true = false) : Empty
+  => Unit/=Empty (pmap TB p)
