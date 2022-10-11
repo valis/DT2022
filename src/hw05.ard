@@ -1,11 +1,4 @@
-\import Arith.Nat (NatSemiring)
 \import Utils
-\open NatSemiring(+-comm)
-
--- 1. Докажите, что vnil является нейтральным элементом для v++.
-
-\func vnil-rightId {A : \Type} {n : Nat} (xs : Vec A n) : transport (Vec A) (+-comm {0} {n}) (xs v++ vnil) = xs
-  => {?}
 
 -- 2. Докажите, что (\lam x => not (not x)) = (\lam x => x).
 

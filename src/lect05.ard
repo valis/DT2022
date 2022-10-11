@@ -17,29 +17,30 @@
   : transport (Vec A) (+-assoc n m k) ((xs v++ ys) v++ zs) = xs v++ (ys v++ zs)
   \elim n, xs
     | 0, vnil => idp
-    | suc n, vcons a xs => transport_vcons (+-assoc n m k) a (xs v++ ys v++ zs) *> pmap (vcons a) (v++-assoc xs ys zs)
-  \where {
-    \func transport_vcons {A : \Type} {n m : Nat} (p : n = m) (a : A) (l : Vec A n)
-      : transport (Vec A) (pmap suc p) (vcons a l) = vcons a (transport (Vec A) p l)
-      \elim p
+    | suc n, vcons a xs => transport_vcons (+-assoc n m k) a (xs v++ ys v++ zs) *>
+        pmap (vcons a) (v++-assoc xs ys zs)
+    \where {
+      \func transport_vcons {A : \Type} {n m : Nat} (p : n = m) (a : A) (xs : Vec A n)
+        : transport (Vec A) (pmap suc p) (vcons a xs) = vcons a (transport (Vec A) p xs)
+        \elim p
         | idp => idp
-  }
+    }
 
 -- 2. Full induction
 
 \open NatSemiring(<)
 
 \func Nat-ind (P : Nat -> \Type)
-              (s : \Pi (n : Nat) -> (\Pi (k : Nat) -> k < n -> P k) -> P n)
+              (s : \Pi (n : Nat) -> (\Pi {k : Nat} -> k < n -> P k) -> P n)
               (x : Nat) : P x
   => aux P s (suc x) x id<suc
   \where {
-    \func aux
-      (P : Nat -> \Type)
-      (s : \Pi (n : Nat) -> (\Pi (k : Nat) -> k < n -> P k) -> P n)
-      (x : Nat) (y : Nat) (q : y < x) : P y \elim x
-      | 0 => \case q
-      | suc x => s y (\lam k k<y => aux P s x k (<-transitive-left k<y (<_suc_<= q)))
+    \func aux (P : Nat -> \Type)
+              (s : \Pi (n : Nat) -> (\Pi {k : Nat} -> k < n -> P k) -> P n)
+              (x : Nat) (y : Nat) (p : y < x) : P y
+      \elim x
+        | 0 => \case p
+        | suc x => s y (\lam {k} q => aux P s x k (<-transitive-left q (<_suc_<= p)))
   }
 
 -- 3. Определение =.
@@ -49,8 +50,17 @@
 -- Так как left и right равны, то некоторые a : A и a' : A равны тогда и только тогда, когда существует функция f : I -> A, такая что f left == a и f right == a', где == -- это вычислительное равенство.
 -- Тип a = {A} a' определен как тип функций I -> A, удовлетворяющих этому свойству.
 
+\data \infix 1 =' {A : \Type} (a : A) (a' : A)
+  | path' (f : I -> A) -- (f left =' a) (f right =' a')
+
 \func test {A : \Type} (f : I -> A) : f left = f right
   => path f
+
+-- Функция @, определенная в прелюдии, -- это просто обратная функция к конструктору path.
+-- path (f : I -> A) : f left = f right
+-- @ (p : a = a') (i : I) : A
+-- @ (path f) == f -- бета-эквивалентность
+-- path (@ p) == p -- эта-эквивалентность.
 
 -- Чтобы доказать, что a = a, можно взять константную функцию \lam _ => a : I -> A.
 \func idp' {A : \Type} {a : A} : a = a => path (\lam _ => a)
@@ -62,12 +72,6 @@
 
 \func pmap' {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a'
   => path (\lam i => f (p @ i))
-
--- Функция @, определенная в прелюдии, -- это просто обратная функция к конструктору path.
--- path (f : I -> A) : f left = f right
--- @ (p : a = a') (i : I) : A
--- @ (path f) == f -- бета-эквивалентность
--- path (@ p) == p -- эта-эквивалентность.
 
 -- pmap можно определять по разному, но если использовать определение, данное выше, то он будет обладать хорошими вычислительными свойствами.
 -- Например, pmap id = id и pmap (f . g) = pmap f . pmap g, где (.) -- это композиция.
@@ -112,13 +116,6 @@
   --  | left => idp
   => coe (\lam i => left = i) idp i
 
--- Мы не можем доказать, что left не равно right, так как мы не можем определить такую функцию для I ни рекурсивно, ни через \data.
-{-
-\func TI (b : I)
-  | left => Unit
-  | right => Empty
--}
-
 -- 6. coe и transport.
 
 -- Функция coe тесно связана с transport.
@@ -136,20 +133,30 @@
 
 -- В ДЗ нужно будет показать, что через transport определеяется частный случай coe.
 
+-- ? : I -> I -> A
+-- s : I -> I -> I
+-- \lam i j => p (s i j)
 \func J'' {A : \Type} {a : A} (B : \Pi (a' : A) -> a = a' -> \Type) (b : B a idp)
   {a' : A} (p : a = a') : B a' p
   => coe (\lam i => B (p i) (\lam j => p (I.squeeze i j))) b right
 
--- 7. true /= false
+-- 7.
 
--- f : A -> B, f a = b, f a' = b'
-
-\func Unit/=Empty (p : (\Sigma) = Empty) : Empty
-  => repl p ()
+\func true/=false' (B : \Type) (b : B) (b' : B) (q : b = b' -> Empty)
+                   (p : true = false) : Empty
+  => \let f : Bool -> B => \case __ \with { | true => b | false => b' }
+     \in q (pmap f p)
 
 \func TB (b : Bool) : \Type
   | true => \Sigma
   | false => Empty
 
 \func true/=false (p : true = false) : Empty
-  => Unit/=Empty (pmap TB p)
+  => repl (pmap TB p) ()
+
+-- Мы не можем доказать, что left не равно right, так как мы не можем определить такую функцию для I ни рекурсивно, ни через \data.
+{-
+\func TI (b : I)
+  | left => Unit
+  | right => Empty
+-}
