@@ -1,7 +1,4 @@
-\import Prelude
-\import Utils
-\open Nat
-
+\import Utils \hiding (nil,::)
 -- 1. \data Pair, проекции.
 
 -- Мы можем определить тип пар натуральных чисел через \data.
@@ -24,7 +21,6 @@
 
 \data TUnit | tunit
 
--- \func unit-lem (x : TUnit) : x = tunit => idp
 \func sigma-lem (x : \Sigma) : x = () => idp
 
 \func sigma-lem' (x y : \Sigma) : x = y => idp
@@ -137,7 +133,7 @@
   => \new Pair { | A => Nat | B => Nat -> Nat | fst_ => 1 | snd_ x => x }
 
 \func pairExample''
-  => \new Pair Nat (Nat -> Nat) 1 (\lam (x : Nat) => x)
+  => \new Pair Nat (Nat -> Nat) 1 (\lam x => x)
 
 -- Мы можем все поля рекорда определить как параметры.
 -- Например, следующий тип эквивалентен типу NatPair, определенному выше:
@@ -393,17 +389,17 @@
 
 \instance ListFunctor : Functor List
   | fmap {A B : \Set} (f : A -> B) (l : List A) : List B \elim l {
-    | nil => nil
-    | :: a l => f a :: fmap f l
+    | List.nil => List.nil
+    | List.:: a l => f a List.:: fmap f l
   }
   | fmap-id {A : \Set} (l : List A) : fmap (\lam a => a) l = l \elim l {
-    | nil => idp
-    | :: a l => pmap (a ::) (fmap-id l)
+    | List.nil => idp
+    | List.:: a l => pmap (a List.::) (fmap-id l)
   }
   | fmap-comp {A B C : \Set} (f : A -> B) (g : B -> C) (l : List A)
     : fmap (\lam a => g (f a)) l = fmap g (fmap f l) \elim l {
-    | nil => idp
-    | :: a l => pmap (_ ::) (fmap-comp f g l)
+    | List.nil => idp
+    | List.:: a l => pmap (_ List.::) (fmap-comp f g l)
   }
 
 -- 12. Arrays
@@ -412,7 +408,10 @@
 
 -- Vec A n == (Fin n -> A)
 
-\record Array' {len : Nat} (A : \Type) (\coerce at : Fin len -> A)
+\record Array' (A : \Type) (len : Nat) (\coerce at : Fin len -> A)
+
+-- Array' A n == Vec A n
+-- Array' A == List A
 
 \func array1 : Array Nat \cowith
   | len => 3
@@ -434,12 +433,12 @@
 
 \func ok : array1 = array2 => idp
 
-\func map' {A B : \Type} (f : A -> B) (a : Array A) : Array B \elim a
+\func map' {A B : \Type} (f : A -> B) (l : Array A) : Array B \elim l
   | nil => nil
-  | Prelude.:: a arr => f a Prelude.:: map' f arr
+  | :: a arr => f a :: map' f arr
 
-\func map {A B : \Type} (f : A -> B) (a : Array A) => \new Array B a.len {
-  | at j => f (a j)
+\func map {A B : \Type} (f : A -> B) (l : Array A) => \new Array B l.len {
+  | at j => f (l j)
 }
 
 
