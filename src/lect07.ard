@@ -146,13 +146,12 @@ n <= suc m
 -- DecPred P верно в тогда и только тогда, когда P разрешим.
 \func DecPred {A : \Type} (P : A -> \Type) => \Pi (a : A) -> Decide (P a)
 
--- f __ x + g __ y == \lam a b => f a x + g b y
-
 -- Например, предикат \lam n => n = 0 разрешим.
-\func decide0 : DecPred (\lam (n : Nat) => n = 0) => \lam n => \case \elim n \with {
-  | 0 => yes idp
-  | suc n1 => no (\case __)
-}
+\func decide0 : DecPred (\lam (n : Nat) => n = 0)
+  => \lam n => \case \elim n \with {
+    | 0 => yes idp
+    | suc n1 => no (\case __)
+  }
 
 -- 4. Разрешимое равенство.
 
@@ -167,6 +166,8 @@ n <= suc m
     | no n => false
   }
 }
+
+\open Eq(==)
 
 \func pred (n : Nat) : Nat
   | 0 => 0
@@ -184,8 +185,6 @@ n <= suc m
     }
   }
 
-\open Eq(==)
-
 \func test1 : (0 == 0) = true => idp
 \func test2 : (0 == 1) = false => idp
 
@@ -198,7 +197,7 @@ n <= suc m
 
 \func T-dec {b : Bool} : Decide (T b) \elim b
   | true => yes ()
-  | false => no (\lam e => e)
+  | false => no absurd
 
 -- Легко построить функции из A -> Bool в тип разрешимых предикатов и наоборот.
 -- Эти функции почти взаимно обратны. Это будет верно, если правильно сформулировать это утверждение.
@@ -283,11 +282,18 @@ n <= suc m
   }
 
 -- foo можно переписать через helper.
-\func foo' {A : \Type} (p : A -> Bool) (a : A) : p a = not (not (p a)) => aux p a (p a)
+\func foo' {A : \Type} (p : A -> Bool) (a : A) : p a = not (not (p a))
+  => aux (p a)
   \where {
-    \func aux {A : \Type} (p : A -> Bool) (a : A) (b : Bool) : b = not (not b) \elim b
+    \func aux (b : Bool) : b = not (not b)
       | true => idp
       | false => idp
+  }
+
+\func foo'' (b : Bool) : b = not (not b)
+  => \case \elim b \with {
+    | true => idp
+    | false => idp
   }
 
 -- 8. Пример доказательств через \case.
@@ -313,10 +319,10 @@ n <= suc m
   : LessOrEq (length (filter p xs)) (length xs) \elim xs
   | nil => z<=_
   | :: a xs => \case p a \as b \return
-      LessOrEq (length (\case b \with {
-        | true => a :: filter p xs
-        | false => filter p xs
-      })) (suc (length xs))
+                  LessOrEq (length (\case b \with {
+                    | true => a :: filter p xs
+                    | false => filter p xs
+                  })) (suc (length xs))
   \with {
     | true => s<=s (filter-lem p xs)
     | false => <=-step-lem (filter-lem p xs)
@@ -330,7 +336,7 @@ n <= suc m
   | nil => z<=_
   | :: a xs => cases (p a) \with {
     | true => s<=s (filter-lem' p xs)
-    | false => <=-step-lem (filter-lem p xs)
+    | false => <=-step-lem (filter-lem' p xs)
   }
 
 -- Через mcases
@@ -355,28 +361,28 @@ n <= suc m
   -- Мы можем явно указывать не только тип возвращаемого значения, но и типы выражений, на которых мы паттерн матчимся.
   -- И в них также можно использовать переменные, связанные в \as.
   \case p a \as b, idp : p a = b \with {
-    | true, q => rewrite q idp -- Здесь q : p a = true
-    | false, q => rewrite q idp -- Здесь q : p a = false
+    | true, q => rewrite q idp -- Здесь q : true = p a
+    | false, q => rewrite q idp -- Здесь q : false = p a
   }
 
 -- Через cases
 \func baz' {A : \Type}
-           (p : A -> Bool) (a : A) : p a = not (not (p a)) =>
-  cases (p a arg addPath) \with {
-    | true, p1 => idp
-    | false, p1 => idp
+           (p : A -> Bool) (a : A) : p a = not (not (p a))
+  => cases (p a arg addPath) \with {
+    | true, q => idp
+    | false, q => idp
   }
 
 -- 11. Еще один пример.
 
 \func BoolFuncLem (f : Bool -> Bool) (x : Bool) : f (f (f x)) = f x
-  => \case f true \as b, idp : f true = b, f false \as b', idp : f false = b', \elim x \with {
-    | true, p, true, p1, true => rewrite p (rewrite p p)
-    | true, p, true, p1, false => {?}
-    | true, p, false, p1, true => {?}
-    | true, p, false, p1, false => {?}
-    | false, p, true, p1, true => {?}
-    | false, p, true, p1, false => {?}
-    | false, p, false, p1, true => {?}
-    | false, p, false, p1, false => {?}
+  => \case f true \as b, idp : f true = b, f false \as b', \elim x \with {
+    | true, p, true, true => rewrite p (rewrite p p)
+    | true, p, true, false => {?}
+    | true, p, false, true => {?}
+    | true, p, false, false => {?}
+    | false, p, true, true => {?}
+    | false, p, true, false => {?}
+    | false, p, false, true => {?}
+    | false, p, false, false => {?}
   }
