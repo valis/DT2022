@@ -41,16 +41,6 @@
 
 -- 2. Корректность сортировки.
 
-\data Perm {A : \Type} (xs ys : List A) \elim xs, ys
-  | nil, nil => perm-nil
-  | :: x xs, :: y ys => perm-cons (x = y) (Perm xs ys)
-  | :: x (:: x' xs), :: y (:: y' ys) => perm-swap (x = y') (x' = y) (xs = ys)
-  | xs, ys => perm-trans {zs : List A} (Perm xs zs) (Perm zs ys)
-
-\func perm-refl {A : \Type} {xs : List A} : Perm xs xs \elim xs
-  | nil => perm-nil
-  | :: a xs => perm-cons idp perm-refl
-
 \data Sorted {A : Dec} (xs : List A) \elim xs
   | nil => sorted-nil
   | :: x xs => sorted-cons (x <= headDef x xs) (Sorted xs)
@@ -72,6 +62,16 @@
       | :: a l1, sorted-cons _ s => tailSorted l1 l2 s
   }
 
+\data Perm {A : \Type} (xs ys : List A) \elim xs, ys
+  | nil, nil => perm-nil
+  | :: x xs, :: y ys => perm-cons (x = y) (Perm xs ys)
+  | xs, ys => perm-trans {zs : List A} (Perm xs zs) (Perm zs ys)
+  | :: x (:: x' xs), :: y (:: y' ys) => perm-swap (x = y') (x' = y) (xs = ys)
+
+\func perm-refl {A : \Type} {xs : List A} : Perm xs xs \elim xs
+  | nil => perm-nil
+  | :: a xs => perm-cons idp perm-refl
+
 \module Insertion \where {
   \func sort {A : Dec} (xs : List A) : List A
     | nil => nil
@@ -88,45 +88,45 @@
 
   \func sort-perm {A : Dec} (xs : List A) : Perm xs (sort xs) \elim xs
     | nil => perm-nil
-    | :: a xs => perm-trans (perm-cons idp (sort-perm xs)) (inserted-perm a (sort xs))
+    | :: a xs => perm-trans (perm-cons idp (sort-perm xs)) (insert-perm a (sort xs))
     \where {
-      \func inserted-perm {A : Dec} (a : A) (xs : List A) : Perm (a :: xs) (insert a xs) \elim xs
+      \func insert-perm {A : Dec} (a : A) (xs : List A) : Perm (a :: xs) (insert a xs) \elim xs
         | nil => perm-refl
         | :: x xs => mcases \with {
-          | inl x<a => perm-trans (perm-swap idp idp idp) (perm-cons idp (inserted-perm a xs))
+          | inl x<a => perm-trans (perm-swap idp idp idp) (perm-cons idp (insert-perm a xs))
           | inr a<=x => perm-refl
         }
 
-      \func insert-comm {A : Dec} (a a' : A) (l : List A)
+      \lemma insert-comm {A : Dec} (a a' : A) (l : List A)
         : insert a (insert a' l) = insert a' (insert a l)
         => \case trichotomy a a' \with {
           | less a<a' => aux a<a' l
-          | equals p => rewrite p idp
+          | equals a=a' => rewrite a=a' idp
           | greater a'<a => sym (aux a'<a l)
         }
         \where {
           \lemma aux {A : Dec} {a a' : A} (a<a' : a < a') (l : List A)
             : insert a (insert a' l) = insert a' (insert a l) \elim l
-            | nil => mcases (idp <|> contradiction)
-            | :: a1 l => repeat mcases $ idp <|> contradiction <|> pmap (a1 ::) (aux a<a' l)
+            | nil => repeat mcases (idp <|> contradiction)
+            | :: a1 l => repeat mcases (idp <|> contradiction <|> pmap (a1 ::) (aux a<a' l))
         }
     }
 
   \func sort-sorted {A : Dec} (xs : List A) : Sorted (sort xs) \elim xs
     | nil => sorted-nil
-    | :: a xs => insert-sorted a (sort-sorted xs)
+    | :: a xs => insert-sorted a (sort xs) (sort-sorted xs)
     \where {
-      \func insert-sorted {A : Dec} (a : A) {xs : List A} (s : Sorted xs) : Sorted (insert a xs) \elim xs
+      \func insert-sorted {A : Dec} (a : A) (xs : List A) (s : Sorted xs) : Sorted (insert a xs) \elim xs
         | nil => sorted-cons LinearOrder.<=-refl sorted-nil
         | :: x xs => mcases \with {
-          | inl x<a => \case s \with {
-            | sorted-cons x<=xs s1 => sorted-cons (\case \elim xs, \elim x<=xs \with {
+          | inl x<a => \case \elim s \with {
+            | sorted-cons _x s => sorted-cons (\case \elim xs, \elim _x \with {
               | nil, _ => <=-less x<a
-              | :: a1 l, x<=xs => mcases \with {
-                | inl _ => x<=xs
-                | inr _ => <=-less x<a
+              | :: a1 l, q => mcases \with {
+                | inl x<a1 => q
+                | inr a<=x => <=-less x<a
               }
-            }) (insert-sorted a {xs} s1)
+            }) (insert-sorted a xs s)
           }
           | inr a<=x => sorted-cons a<=x s
         }
@@ -152,10 +152,10 @@
   \data Tree (A : \Type) | leaf | branch (Tree A) A (Tree A)
 
   \func sort {A : Dec} (l : List A) => toList (buildTree l)
-
-  \func buildTree {A : Dec} (l : List A) : Tree A \elim l
-    | nil => leaf
-    | :: a l => insert a (buildTree l)
+    \where
+      \func buildTree {A : Dec} (l : List A) : Tree A \elim l
+        | nil => leaf
+        | :: a l => insert a (buildTree l)
 
   \func toList {A : \Type} (t : Tree A) : List A \elim t
     | leaf => nil
@@ -168,9 +168,9 @@
       | inr a<=a1 => branch (insert a l1) a1 l2
     }
 
-  -- Это основное утверждение
-  \lemma sort=insert {A : Dec} (l : List A)
-    : sort l = Insertion.sort l \elim l
+  \open sort
+
+  \func sort=insert {A : Dec} (xs : List A) : sort xs = Insertion.sort xs \elim xs
     | nil => idp
     | :: a l => rewrite (toList_insert a (buildTree l) (rewrite sort=insert (Insertion.sort-sorted l))) $ pmap (Insertion.sort.insert a) (sort=insert l)
 
@@ -287,23 +287,32 @@
 
 \module TRRedBlack \where {
   \open RedBlack.sort
-  \open RedBlack(toList)
+  \open RedBlack
 
-  \func sort {A : Dec} (l : List A) => rbTreeToList (buildTree l) nil
-    \where
-      \func rbTreeToList {A : \Type} (t : RBTree A) (r : List A) : List A \elim t
-        | rbLeaf => r
-        | rbBranch _ t1 a t2 => rbTreeToList t1 (a :: rbTreeToList t2 r)
+  \func sort {A : Dec} (l : List A) => toList (mkTree l rbLeaf)
 
-  \open sort
-
-  \lemma rbTreeToList=toList {A : \Set} (t : RBTree A) : rbTreeToList t nil = toList t
-    => aux t nil *> ++_nil
-    \where
-      \lemma aux {A : \Set} (t : RBTree A) (l : List A) : rbTreeToList t l = toList t ++ l \elim t
-        | rbLeaf => idp
-        | rbBranch c t1 a t2 => aux t1 (a :: rbTreeToList t2 l) *> pmap (toList t1 ++ a :: __) (aux t2 l) *> inv ++-assoc
+  \func mkTree {A : Dec} (l : List A) (\strict r : RBTree A) : RBTree A \elim l
+    | nil => r
+    | :: a l => mkTree l (repaint (insert a r))
 
   \lemma sort=rbSort {A : Dec} (l : List A) : sort l = RedBlack.sort l
-    => rbTreeToList=toList _
+    => mkTree=buildTree l nil *> pmap (\lam s => toList (buildTree s)) ++_nil
+
+  \lemma mkTree=buildTree {A : Dec} (l l' : List A) : toList (mkTree l (buildTree l')) = toList (buildTree (l ++ l')) \elim l
+    | nil => idp
+    | :: a l => mkTree=buildTree l (a :: l') *> buildTree_insert a l l'
+
+  \lemma buildTree-sorted {A : Dec} (l : List A) : Sorted (toList (buildTree l))
+    => rewrite sort=insert (Insertion.sort-sorted l)
+
+  \lemma toList_insert' {A : Dec} (a : A) {l : List A} : toList (insert a (buildTree l)) = Insertion.sort.insert a (toList (buildTree l))
+    => toList_insert a (buildTree l) (buildTree-sorted l)
+
+  \lemma buildTree_insert {A : Dec} (a : A) (l l' : List A)
+    : toList (buildTree (l ++ a :: l')) = toList (repaint (insert a (buildTree (l ++ l')))) \elim l
+    | nil => idp
+    | :: a' l => toList_repaint _ *> toList_insert' a' *> pmap (Insertion.sort.insert a') (buildTree_insert a l l' *> toList_repaint _ *> toList_insert' a) *> Insertion.sort-perm.insert-comm a' a _ *> inv (
+      toList_repaint _ *>
+      toList_insert a _ (transportInv Sorted (toList_repaint _ *> toList_insert' a') (Insertion.sort-sorted.insert-sorted a' _ (buildTree-sorted _))) *>
+      pmap (Insertion.sort.insert a) (toList_repaint _ *> toList_insert' a'))
 }
