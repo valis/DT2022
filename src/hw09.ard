@@ -1,0 +1,67 @@
+\import Data.List
+\import Order.LinearOrder
+\import Utils (Maybe, just, maybe, nothing)
+\import lect07(Decide)
+\import lect09
+\open LinearOrder
+
+-- 1. Закончите определение \instance Monad для Term.
+
+\instance TermMonad : Monad Term
+  | return => var
+  | >>= {A B : \Set} (t : Term A) (k : A -> Term B) : Term B \elim t {
+    | var v => k v
+    | unit => unit
+    | app t1 t2 => app (t1 >>= k) (t2 >>= k)
+    | lam t => lam (t >>= liftM k)
+  }
+  | return-left => {?}
+  | return-right => {?}
+  | >>=-assoc => {?}
+
+-- 2. Определите отношение многошаговой редукции на Term.
+
+\func Red {V : \Set} (t s : Term V) : \Type => {?}
+
+-- 3. Стратегия редукции -- это функция, которая каждому терму сопоставляет либо некоторый терм, к которому он редуцируется за 1 шаг, либо доказательство, что таких термов нет.
+--    Определите любую стратегию редукции.
+
+\func strategy {V : \Set} (t : Term V) : Decide (\Sigma (s : Term V) (Red1 t s)) => {?}
+
+-- 4. Докажите, что подтермы достижимого терма достижимы.
+
+\func appAccLeft {V : \Set} {t s : Term V} (a : Acc Red1 (app t s)) : Acc Red1 t
+  => {?}
+
+\func appAccRight {V : \Set} {t s : Term V} (a : Acc Red1 (app t s)) : Acc Red1 s
+  => {?}
+
+\func subLamAcc {V : \Set} {t : Term (Maybe V)} (a : Acc Red1 (lam t)) : Acc Red1 t
+  => {?}
+
+-- 5. Докажите следующую обобщенную лемму о подстановке и выведите из нее обычную версию: если Г, x : A |- b : B и Г |- a : A, то Г |- b[a/x] : B.
+
+\func substLem {U V : \Set} (ctx : U -> Type) (b : Term U) (B : Type) (h : hasType ctx b B)
+               (ctx' : V -> Type) (a : U -> Term V) (h' : \Pi (u : U) -> hasType ctx' (a u) (ctx u))
+  : hasType ctx' (b >>= a) B
+  => {?}
+
+\func substLem1 => {?}
+
+-- 6. Докажите, что если Г |- a : A и Red a a', то Г |- a' : A
+
+\func redLem {V : \Set} {ctx : V -> Type} {a a' : Term V} (r : Red a a') {A : Type} (h : hasType ctx a A)
+  : hasType ctx a' A
+  => {?}
+
+-- Optional
+-- 7. Для доказательства typeableInterp понадобится вспомогательное утверждение. Докажите его.
+
+\data HeadRed {V : \Set} (a t s : Term V) \elim t, s
+  | app t1 t2, app s1 s2 => headApp (HeadRed a t1 s1) (t2 = s2)
+  | app t a', s => headBeta {f : Term (Maybe V)} (a = a') (lam f = t) (f >>= maybe a var = s)
+
+\func redInterp {V : \Set} {a t s : Term V} {T : Type} (r : HeadRed a t s) (acc : Acc Red1 a) (q : Interp T s) : Interp T t
+  => {?}
+
+-- 8. Докажите typeableInterp из лекции
