@@ -1,4 +1,4 @@
-\import lect07 \hiding (<=-refl, <=-step, baz, isEven)
+\import lect07 \hiding (<=-refl, baz, isEven)
 \import lect10
 \import Utils
 
