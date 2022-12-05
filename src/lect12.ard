@@ -1,14 +1,13 @@
-\import Algebra.Domain.Euclidean
-\import Algebra.Group
-\import Algebra.Monoid
-\import Algebra.Ring
+\import Arith.Int
+\import Equiv
 \import Function.Meta
-\import Logic (/=, TruncP, inP, truncP)
 \import Logic.Meta
+\import Meta
+\import Paths (inv, transport, *>, transport_*>)
 \import Paths.Meta
-\import Utils
-\import lect10(sigmaEq,isProp)
-\import lect11(DecEq,propExt)
+\import Utils \hiding (transport, *>)
+\import lect10(isProp)
+\import lect11(not-not,propExt)
 
 -- Тип, являющиеся множествами, ведут себя как множества в теории множеств.
 -- Это означает, что многие теоремы из нее можно доказать и в теории типов.
@@ -22,9 +21,7 @@
 \truncated \data Card : \Set
   | card \Set
 
--- card : \Set -> Card
-
-\sfunc leq (c1 c2 : Card) : \Prop
+\func leq (c1 c2 : Card) : \Prop
   | card A, card B => ∃ (f : A -> B) (isInj f)
 
 -- Тот факт, что мощность строго меньше, означает, что не существует сюръекции вида
@@ -38,12 +35,22 @@
 
 -- 1. Сюръективные функции.
 
-\func isInj {A B : \Set} (f : A -> B) => \Pi {x y : A} -> f x = f y -> x = y
+\func isInj {A B : \Set} (f : A -> B) => \Pi (x y : A) -> f x = f y -> x = y
+
+\truncated \data Trunc (A : \Type) : \Prop
+  | in A
+  \where {
+    \func map {A B : \Type} (f : A -> B) (x : Trunc A) : Trunc B \elim x
+      | in a => in (f a)
+
+    \lemma extract {A : \Type} (x : Trunc A) (p : isProp A) : A \elim x
+      | in a => a
+  }
 
 -- Сюръективные функции определяютя очевидным образом.
 -- Обратите внимание, что мы используем обрезание, так как хотим, чтобы этот тип был утверждением.
 \func isSur {A B : \Type} (f : A -> B) : \Prop =>
-  \Pi (b : B) -> ∃ (a : A) (f a = b)
+  \Pi (b : B) -> Trunc (\Sigma (a : A) (f a = b))
   -- \Pi (b : B) ->        \Sigma (a : A) (f a = b)
 
 -- 2. Биекция = инъекция + сюръекция.
@@ -52,23 +59,23 @@
   => \Sigma (g : B -> A) (\Pi (x : A) -> g (f x) = x) (\Pi (y : B) -> f (g y) = y)
 
 \func isBij->isInj {A B : \Set} (f : A -> B) (p : isBij f) : isInj f
-  => \lam {x} {y} q => Utils.sym (p.2 x) *> pmap p.1 q *> p.2 y
+  => unfold isInj (\lam x y q => Utils.sym (p.2 x) *> pmap p.1 q *> p.2 y)
 
 \func isBij->isSur {A B : \Set} (f : A -> B) (p : isBij f) : isSur f
-  => \lam b => inP (p.1 b, p.3 b)
+  => \lam b => in (p.1 b, p.3 b)
 
 \func isInj+isSur->isBij {A B : \Set} (f : A -> B) (ip : isInj f) (sp : isSur f) : isBij f
   -- \Sigma (a : A) (f a = b)
-  => \let t b => \scase sp b \return \Sigma (a : A) (f a = b) \level \lam p q => ext (ip (p.2 *> Utils.sym q.2)) \with {
-                   | inP p => p
-                 }
-     \in (\lam b => (t b).1, \lam a => ip (t (f a)).2, \lam b => (t b).2)
+  => \let t b => Trunc.extract (sp b) (\lam p q => ext (ip p.1 q.1 (p.2 *> Utils.sym q.2)))
+     \in (\lam b => (t b).1, \lam a => ip _ _ (t (f a)).2, \lam b => (t b).2)
 
 -- 3. Определение Int.
 
 \data Int'
   | pos' Nat
-  | neg' Nat
+  | neg' Nat \with {
+    | 0 => pos' 0
+  }
 
 -- Конструкторы в обычных типах данных не пересекаются.
 -- Другими словами, мы всегда можем доказать, что con1 не равен con2.
@@ -81,13 +88,6 @@
 -- Единственное отличие заключается в том, что не обязательно все случаи должны быть покрыты.
 -- Например, мы можем определить как neg вычисляется только на zero, но не на suc.
 -- Тогда neg 0 будет вычисляться в pos 0, но neg (suc n) будет уже в нормальной форме как обычный конструктор.
-{-
-\data Int
-  | pos Nat
-  | neg Nat \with {
-    | 0 => pos 0
-  }
--}
 
 -- Когда мы определяем функцию над таким типом данных при помощи паттерн матчинга, система проверяет, что ее значение на эквивалентных конструкторах совпадают.
 -- Например, следующее определение не пройдет, так как intEx (pos 0) равно 3, а intEx (neg 0) равно 7.
@@ -97,7 +97,7 @@
   | neg n => 7
 -}
 
-\func negative' (x : Int) : Int
+\func negative (x : Int) : Int
   | pos n => neg n
   | neg n => pos n
 
@@ -142,20 +142,13 @@
     | right => in~ a'
   }
 
-\func Rat => Quotient (\Sigma Int (d : Int) (d /= 0))
-                      (\lam p q => p.1 * q.2 = q.1 * p.2)
-
-\func negRat (x : Rat) : Rat
-  | in~ p => in~ (negative p.1, p.2, p.3)
-  | equals~ {p} {q} r => equals~ {\Sigma Int (d : Int) (d /= 0)} {\lam p q => p.1 * q.2 = q.1 * p.2} {negative p.1, p.2, p.3} {negative q.1, q.2, q.3}
-      (Ring.negative_*-left p.1 q.2 *> pmap negative r *> Utils.sym (Ring.negative_*-left q.1 p.2))
-
--- equals~ {a} {a'} r : I -> Quotient A R
--- path (equals~ {a} {a'} r) : equals~ {a} {a'} r left = equals~ {a} {a'} right
+-- equals~ r : I -> Quotient A R
+-- path (equals~ r) : equals~ r left = equals~ r right
 
 -- Тогда path (eq a a' r) будет задавать равенство между двумя элементами, указанными в этих условиях.
 -- В данном случае мы получаем необходимое равенство между эквивалентными элементами.
-\func quotientEq {A : \Type} {R : A -> A -> \Type} (a a' : A) (r : R a a') : in~ a = {Quotient A R} in~ a'
+\func quotientEq {A : \Type} {R : A -> A -> \Type} {a a' : A} (r : R a a')
+  : in~ a = {Quotient A R} in~ a'
   => path (equals~ r)
 
 -- Чтобы определить функцию над Quotient A R, необходимо задать ее на элементе вида inR a и на конструкторе eq,
@@ -164,30 +157,83 @@
                  (f : A -> B) (p : \Pi {a a' : A} -> R a a' -> f a = f a')
                  (x : Quotient A R) : B \elim x
   | in~ a => f a
-  | equals~ r i => p r @ i
+  | equals~ r => p r
 
 \func inR-sur {A : \Type} {R : A -> A -> \Type} : isSur (in~ {A} {R})
-  => \lam x => \case \elim x \with {
-                 | in~ a => inP (a, idp)
-               }
+  => \case \elim __ \with {
+    | in~ a => in (a,idp)
+  }
 
-\truncated \data RSTClosure {A : \Type} (R : A -> A -> \Type) (a b : A) : \Prop
-  | refl (a = b)
-  | sym (RSTClosure R b a)
-  | trans {c : A} (RSTClosure R a c) (RSTClosure R c b)
-  | inc (R a b)
+\truncated \data RSTClosure {A : \Type} (R : A -> A -> \Type) (x y : A) : \Prop
+  | refl (x = y)
+  | sym (RSTClosure R y x)
+  | trans {z : A} (RSTClosure R x z) (RSTClosure R z y)
+  | inc (R x y)
 
 \func code {A : \Type} {R : A -> A -> \Type} (x y : Quotient A R) : \Prop \elim x, y
-  | in~ a, in~ a1 => RSTClosure R a a1
-  | in~ a, equals~ {a'} {a''} r => propExt (\lam r' => trans r' (inc r)) (\lam r' => trans r' (sym (inc r)))
-  | equals~ {a'} {a''} r, in~ a => propExt (trans (sym (inc r))) (trans (inc r))
+  | in~ a, in~ a' => RSTClosure R a a'
+  | in~ a, equals~ r => propExt (\lam r' => trans r' (inc r)) (\lam r' => trans r' (sym (inc r)))
+  | equals~ r, in~ a1 => propExt (trans (sym (inc r))) (trans (inc r))
 
 \func code-refl {A : \Type} {R : A -> A -> \Type} (x : Quotient A R) : code x x \elim x
   | in~ a => refl idp
 
-\func quotientEq-inv' {A : \Type} {R : A -> A -> \Type} (x y : Quotient A R) (p : x = y) : code x y \elim p
-  | idp => code-refl x
+\func eff {A : \Type} (R : A -> A -> \Type) {a a' : A} (p : in~ a = {Quotient A R} in~ a') : RSTClosure R a a'
+  => aux R p
+  \where {
+    \func aux {A : \Type} (R : A -> A -> \Type) {x y : Quotient A R} (p : x = {Quotient A R} y) : code x y \elim p
+      | idp => code-refl x
+  }
 
-\func quotientEq-inv {A : \Type} {R : A -> A -> \Type} (a a' : A) (p : in~ a = {Quotient A R} in~ a')
-  : RSTClosure R a a'
-  => quotientEq-inv' _ _ p
+-- 5. S1
+
+\data S1
+  | base
+  | loop I \with {
+    | left => base
+    | right => base
+  }
+
+\func ploop : base = base
+  => path loop
+
+\func S1-code (x : S1) : \Set
+  | base => Bool
+  | loop => path (iso not not not-not not-not)
+
+\func equality=>func {A B : \Type} (p : A = B) : A -> B
+  => transport (\lam X => X) p
+
+\func ploop/=idp (p : ploop = idp) : Empty
+  => \let t : not = (\lam x => x) => pmap equality=>func $ pmap (pmap S1-code) p
+     \in \case pmap (\lam (f : Bool -> Bool) => f true) t
+
+\func S1-code' (x : S1) : \Set
+  | base => Int
+  | loop => path (iso isuc ipred ipred_isuc isuc_ipred)
+
+\func wind (n : Int) : base = base \elim n
+  | pos 0 => idp
+  | pos (suc n) => wind (pos n) *> ploop
+  | neg (suc n) => wind (neg n) *> inv ploop
+
+\func encode {x : S1} (p : base = x) : S1-code' x
+  => transport S1-code' p 0
+
+\func decode {x : S1} (a : S1-code' x) : base = x \elim x
+  | base => wind a
+  | loop i => {?}
+
+\func decode_encode {x : S1} (p : base = x) : decode (encode p) = p \elim p
+  | idp => idp
+
+\func encode_wind (n : Int) : encode (wind n) = n
+  | pos 0 => idp
+  | pos (suc n) => transport_*> S1-code' _ _ _ *> rewrite encode_wind idp
+  | neg (suc n) => transport_*> S1-code' _ _ _ *> rewrite encode_wind {?}
+
+\func pi1 : QEquiv {base = base} {Int} \cowith
+  | f => encode
+  | ret => wind
+  | ret_f => decode_encode
+  | f_sec => encode_wind
