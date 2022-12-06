@@ -26,15 +26,15 @@
 
 \func isEmptyListSet {A : \Set} (x : ListSet A) : Bool => {?}
 
--- 5. Определите функцию union {A : \Set} : S A -> S A -> S A для произвольного S A (удовлетворяющего FinSetSpec) и для ListSet.
+-- 5. Определите функцию union {A : \Set} : S -> S -> S для произвольного S (удовлетворяющего FinSetSpec) и для ListSet.
 
--- 6. Определите функцию intersection {A : DecSet} : S A -> S A -> S A для произвольного S A (удовлетворяющего FinSetSpec) и для ListSet.
+-- 6. Определите функцию intersection {A : DecSet} : S -> S -> S для произвольного S (удовлетворяющего FinSetSpec) и для ListSet.
 
 -- 7. Мы не можем определить функция size в общем случае, но мы можем определить предикат S -> Nat -> \Prop, соответствующий \lam xs n => size xs <= n.
 --    Задайте этот предикат и докажите, что он эквивалентен обычному определению, если A -- разрешимо и S -- конечно.
 
 -- Optional
--- 8. Определите предикат isFin : \Type -> \Prop так, чтобы множество \Sigma (P : A -> \Prop) (isFin (\Sigma (a : A) (P A))) удовлетворяло FinSetSpec, определите этот инстанс.
+-- 8. Определите предикат isFin : \Type -> \Prop так, чтобы множество \Sigma (P : A -> \Prop) (isFin (\Sigma (a : A) (P a))) удовлетворяло FinSetSpec, определите этот инстанс.
 
 -- Optional
 -- 9. Определите NubListSet и инстанс FinSetSpec для него.

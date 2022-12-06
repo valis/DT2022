@@ -152,9 +152,16 @@
   | emptyMap-univ {k : K} : get emptyMap k = nothing
   | put-head {k : K} {v : V} {m : M} : get (put k v m) k = just v
   | put-tail {k k' : K} {v : V} {m : M} : k /= k' -> get (put k' v m) k = get m k
-  | map-fin (m : M) : ∃ (l : List (\Sigma K V))
-      (\Pi (k : K) -> \Sigma (\Pi (v : V) -> (get m k = just v) <-> In (k,v) l)
-                             ((get m k = nothing) <-> (\Pi (v : V) -> Not (In (k,v) l))))
+  | map-fin (m : M) : ∃ (l : List (\Sigma K V)) (\Pi (k : K) -> get m k = getList l k)
+   {- (\Pi (k : K) -> \Sigma (\Pi (v : V) -> (get m k = just v) <-> In (k,v) l)
+                             ((get m k = nothing) <-> (\Pi (v : V) -> Not (In (k,v) l)))) -}
+
+\func getList {K : DecSet} {V : \Set} (l : List (\Sigma K V)) (k : K) : Maybe V \elim l
+  | nil => nothing
+  | p :: l => \case decideEq k p.1 \with {
+    | yes e => just p.2
+    | no n => getList l k
+  }
 
 \class MapSpec' {K : DecSet} {V : \Set} (M : \Set)
   | get' : M -> K -> Maybe V
